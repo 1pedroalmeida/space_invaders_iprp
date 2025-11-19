@@ -34,6 +34,9 @@ TOP_N = 10
 
 STATE = None  # usado apenas para callbacks do teclado
 
+def pos_player():
+    return state["player"].position()
+
 # =========================
 # Top Resultados (Highscores)
 # =========================
@@ -73,14 +76,16 @@ def criar_entidade(x,y, tipo="enemy"):
 def criar_bala(x, y, tipo):
     t = turtle.Turtle(visible=False)
     if tipo == "player":
-        t.pencolor("RED")
-    else:
         t.pencolor("YELLOW")
+    else:
+        t.pencolor("RED")
     
     # print("[criar_bala] por implementar")
 
     t.penup()
     t.goto(x, y)
+
+    t.shape("square")
     t.showturtle()
     return t
 
@@ -98,10 +103,16 @@ def restaurar_balas(state, lista_pos, tipo):
 # Handlers de tecla 
 # =========================
 def mover_esquerda_handler():
-    print("[mover_esquerda_handler] por implementar")
+    pos = state["player"].position()
+
+    if pos[0] > -290:
+        state["player"].goto(pos[0]-10, -300)
 
 def mover_direita_handler():
-    print("[mover_direita_handler] por implementar")
+    pos = state["player"].position() 
+
+    if pos[0] < 280:
+        state["player"].goto(pos[0]+10, -300)
 
 def disparar_handler():
     print("[disparar_handler] por implementar")
