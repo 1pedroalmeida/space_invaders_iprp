@@ -34,9 +34,6 @@ TOP_N = 10
 
 STATE = None  # usado apenas para callbacks do teclado
 
-def pos_player():
-    return state["player"].position()
-
 # =========================
 # Top Resultados (Highscores)
 # =========================
@@ -45,6 +42,14 @@ def ler_highscores(filename):
 
 def atualizar_highscores(filename, score):
     print("[atualizar_highscores] por implementar")
+
+def atualizar_score(x, y, t, score):
+    t.penup()
+    t.clear()
+    t.goto(x, y)
+    t.color("WHITE")
+    t.pendown()
+    t.write(f"SCORE: {score}", align="center", font=("Arial", 12, "bold"))
 
 # =========================
 # Guardar / Carregar estado (texto)
@@ -66,8 +71,6 @@ def criar_entidade(x,y, tipo="enemy"):
     else:
         t.shape("enemy.gif")
     
-    # print("[criar_entidade] por implementar")
-
     t.penup()
     t.goto(x, y)
     t.showturtle()
@@ -76,22 +79,20 @@ def criar_entidade(x,y, tipo="enemy"):
 def criar_bala(x, y, tipo):
     t = turtle.Turtle(visible=False)
     if tipo == "player":
-        t.pencolor("YELLOW")
+        t.fillcolor("YELLOW")
     else:
-        t.pencolor("RED")
+        t.fillcolor("RED")
     
-    # print("[criar_bala] por implementar")
-
     t.penup()
     t.goto(x, y)
-
+    t.begin_fill()
+    t.shapesize(stretch_wid=0.5, stretch_len=0.2)
     t.shape("square")
+    t.end_fill()
     t.showturtle()
     return t
 
 def spawn_inimigos_em_grelha(state, posicoes_existentes, dirs_existentes=None):
-    print("[spawn_inimigos_em_grelha] por implementar")
-
     for i in range(ENEMY_ROWS):
         for j in range(ENEMY_COLS):
             state["enemies"].append(criar_entidade(-275+j*ENEMY_SPACING_X, ENEMY_START_Y-ENEMY_SPACING_Y*i, "enemy"))
@@ -103,52 +104,119 @@ def restaurar_balas(state, lista_pos, tipo):
 # Handlers de tecla 
 # =========================
 def mover_esquerda_handler():
-    pos = state["player"].position()
-
-    if pos[0] > -290:
-        state["player"].goto(pos[0]-10, -300)
+    if state["player"].position()[0] > -BORDA_X:
+        state["player"].goto(state["player"].position()[0]-PLAYER_SPEED, -300)
 
 def mover_direita_handler():
-    pos = state["player"].position() 
-
-    if pos[0] < 280:
-        state["player"].goto(pos[0]+10, -300)
+    if state["player"].position()[0] < BORDA_X:
+        state["player"].goto(state["player"].position()[0]+PLAYER_SPEED, -300)
 
 def disparar_handler():
-    print("[disparar_handler] por implementar")
+    state["player_bullets"].append(criar_bala(state["player"].position()[0], state["player"].position()[1]+PLAYER_BULLET_SPEED, "player"))
 
 def gravar_handler():
     print("[gravar_handler] por implementar")
 
 def terminar_handler():
+    # sys.exit(0)
+
     print("[terminar_handler] por implementar")
 
 # =========================
 # Atualizações e colisões
 # =========================
 def atualizar_balas_player(state):
-    print("[atualizar_balas_player] por implementar")
+    for bullet in state["player_bullets"]:
+        bullet.goto(bullet.position()[0], bullet.position()[1]+PLAYER_BULLET_SPEED)
+
+        if bullet.position()[1] >= BORDA_Y:
+            bullet.hideturtle()
+            state["player_bullets"].remove(bullet)
 
 def atualizar_balas_inimigos(state):
-    print("[atualizar_balas_inimigos] por implementar")
+    for bullet in state["enemy_bullets"]:
+        bullet.goto(bullet.position()[0], bullet.position()[1]-ENEMY_BULLET_SPEED)
+
+        if bullet.position()[1] <= -BORDA_Y:
+            bullet.hideturtle()
+            state["enemy_bullets"].remove(bullet)
 
 def atualizar_inimigos(state):
-    print("[atualizar_inimigos] por implementar")
+    direcao = -1
+
+    for enemy in state["enemies"]:
+        enemy.goto(enemy.position()[0], enemy.position()[1]-ENEMY_FALL_SPEED)
+
+        drift_random = random.random()
+        invert_random = random.random()
+        limite_X = BORDA_X+ENEMY_DRIFT_STEP
+
+        if invert_random <= ENEMY_INVERT_CHANCE:
+            direcao *= -1
+
+        if drift_random <= ENEMY_DRIFT_CHANCE:
+            if (enemy.position()[0] <= -limite_X and direcao == -1) or (enemy.position()[0] >= limite_X and direcao == 1):
+                direcao *= -1
+            else:
+                enemy.goto(enemy.position()[0] + direcao*ENEMY_DRIFT_STEP, enemy.position()[1])
+        
+        state["enemy_moves"].append(direcao)
 
 def inimigos_disparam(state):
-    print("[inimigos_disparam] por implementar")
+    for enemy in state["enemies"]:
+        disparam_random = random.random()
+
+        if disparam_random <= ENEMY_FIRE_PROB:
+            state["enemy_bullets"].append(criar_bala(enemy.position()[0], enemy.position()[1]-10, "enemy"))
 
 def verificar_colisoes_player_bullets(state):
-    print("[verificar_colisoes_player_bullets] por implementar")
+    for bullet in state["player_bullets"]:
+        for enemy in state["enemies"]:
+            distancia_bala_inimigo_Y = enemy.position()[1] - ENEMY_SIZE/2 - bullet.position()[1]
+            distancia_bala_inimigo_X = abs(enemy.position()[0] - bullet.position()[0])
+
+            if (distancia_bala_inimigo_Y <= COLLISION_RADIUS) and (distancia_bala_inimigo_X <= ENEMY_SIZE/2):
+                bullet.hideturtle()
+                state["player_bullets"].remove(bullet)
+                enemy.hideturtle()
+                state["enemies"].remove(enemy)
+
+                # AUMENTAR SCORE
+                state["score"] += 1
+                atualizar_score(0, 310, score_t, state["score"])
+                break
 
 def verificar_colisoes_enemy_bullets(state):
-    print("[verificar_colisoes_enemy_bullets] por implementar")
+    for bullet in state["enemy_bullets"]:
+        distancia_bala_player_Y = bullet.position()[1] - state["player"].position()[1]
+        distancia_bala_player_X = abs(state["player"].position()[0] - bullet.position()[0])
+
+        if (distancia_bala_player_Y <= COLLISION_RADIUS) and (distancia_bala_player_X <= 5):
+            state["player"].hideturtle()
+
+            # PERDEU
+            return True
 
 def inimigo_chegou_ao_fundo(state):
-    print("[inimigo_chegou_ao_fundo] por implementar")
+    for enemy in state["enemies"]:
+        if enemy.position()[1] <= -BORDA_Y:
+            enemy.hideturtle()
+            state["enemies"].remove(enemy)
+
+            # PERDEU
+            return True
 
 def verificar_colisao_player_com_inimigos(state):
-    print("[verificar_colisao_player_com_inimigos] por implementar")
+    for enemy in state["enemies"]:
+        distancia_player_inimigo_Y = enemy.position()[1] - state["player"].position()[1]
+        distancia_player_inimigo_X = abs(state["player"].position()[0] - enemy.position()[0])
+
+        if (distancia_player_inimigo_Y <= (COLLISION_RADIUS + ENEMY_SIZE/2)) and (distancia_player_inimigo_X <= ENEMY_SIZE/2):
+            state["player"].hideturtle()
+            enemy.hideturtle()
+
+            # PERDEU
+            return True
 
 # =========================
 # Execução principal
@@ -174,16 +242,16 @@ if __name__ == "__main__":
 
     # Estado base
     state = {
-        "screen": screen,
-        "player": None,
-        "enemies": [],
-        "enemy_moves": [],          
-        "player_bullets": [],
-        "enemy_bullets": [],
-        "score": 0,
-        "frame": 0,
-        "files": {"highscores": HIGHSCORES_FILE, "save": SAVE_FILE}
-    }
+            "screen": screen,
+            "player": None,
+            "enemies": [],
+            "enemy_moves": [],          
+            "player_bullets": [],
+            "enemy_bullets": [],
+            "score": 0,
+            "frame": 0,
+            "files": {"highscores": HIGHSCORES_FILE, "save": SAVE_FILE}
+            }
 
     # Construção inicial
     if loaded:
@@ -192,6 +260,9 @@ if __name__ == "__main__":
         print("New game!")
         state["player"] = criar_entidade(0, -300,"player")
         spawn_inimigos_em_grelha(state, None, None)
+        
+        score_t = turtle.Turtle(visible=False)
+        atualizar_score(0, 310, score_t, 0)
 
     # Variavel global para os keyboard key handlers
     STATE = state
@@ -211,11 +282,11 @@ if __name__ == "__main__":
         inimigos_disparam(STATE)
         atualizar_balas_inimigos(STATE)
         verificar_colisoes_player_bullets(STATE)
-        
+
         if verificar_colisao_player_com_inimigos(STATE):
             print("Colisão direta com inimigo! Game Over")
             terminar_handler()
-        
+
         if verificar_colisoes_enemy_bullets(STATE):
             print("Atingido por inimigo! Game Over")
             terminar_handler()
