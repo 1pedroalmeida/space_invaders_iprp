@@ -1,0 +1,13 @@
+# player: posição
+# enemies: posições
+# enemy_moves
+# player_bullets: posição
+# enemy_bullets: posição
+
+#aqui comeca savegame.txt
+player:x,y
+enemies:x,y;x,y;x,y;...
+enemy_moves:1;-1;-1;1;...
+player_bullets:x,y;x,y;x,y;...
+enemy_bullets:x,y;x,y;x,y;...
+score:n

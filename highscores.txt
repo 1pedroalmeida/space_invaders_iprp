@@ -1,0 +1,3 @@
+rui:6
+sergio:8
+pedro:30

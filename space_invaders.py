@@ -38,10 +38,44 @@ STATE = None  # usado apenas para callbacks do teclado
 # Top Resultados (Highscores)
 # =========================
 def ler_highscores(filename):
-    print("[ler_highscores] por implementar")
+    with open(filename, "r") as f:
+        linhas = f.readlines()
+        f.seek(0)
+
+        if ":" not in f.read():
+            return []
+
+        scores = [l[l.index(":")+1:-1] for l in linhas]
+        scores.sort(reverse=True)
+
+    return scores
 
 def atualizar_highscores(filename, score):
-    print("[atualizar_highscores] por implementar")
+    scores = ler_highscores(filename)
+
+    if len(scores) == 0:
+        linhas = []
+    else:
+        with open(filename, "r") as f:
+            linhas = f.readlines()
+            print(linhas)
+
+    if len(scores) < TOP_N:
+        nome = input("Nome do utilizador: ")
+        linhas.append(f"{nome}:{score}\n")
+    elif score > int(scores[-1]):
+        nome = input("Nome do utilizador: ")
+
+        for l in range(len(linhas)-1, -1, -1):
+            linha = linhas[l]
+
+            if int(linha[linha.index(":")+1:-1]) < score:
+                linhas.remove(linha)
+
+        linhas.append(f"{nome}:{score}\n")
+
+    with open(filename, "w") as f:
+        f.writelines(linhas)
 
 def atualizar_score(x, y, t, score):
     t.penup()
@@ -55,11 +89,69 @@ def atualizar_score(x, y, t, score):
 # Guardar / Carregar estado (texto)
 # =========================
 def guardar_estado_txt(filename, state):
-    print("[guardar_estado_txt] por implementar")
+    # ==== savegame.txt ==== 
+    # player:x,y
+    # enemies:x,y;x,y;x,y;...
+    # enemy_moves:1;-1;-1;1;...
+    # player_bullets:x,y;x,y;x,y;...
+    # enemy_bullets:x,y;x,y;x,y;...
+    # score:n
+    estado_guardado = ""
+
+
+    estado_guardado += f'player:{state["player"].position()[0]},{state["player"].position()[1]}'
+
+    estado_guardado += "\nenemies:"
+    for enemy in state["enemies"]:
+        estado_guardado += f'{enemy.position()[0]},{enemy.position()[1]};'
+
+    estado_guardado += "\nenemy_moves:"
+    for enemy_move in state["enemy_moves"]:
+        estado_guardado += f'{enemy_move};'
+
+    estado_guardado += "\nplayer_bullets:"
+    for bullet in state["player_bullets"]:
+        estado_guardado += f'{bullet.position()[0]},{bullet.position()[1]};'
+
+    estado_guardado += "\nenemy_bullets:"
+    for bullet in state["enemy_bullets"]:
+        estado_guardado += f'{bullet.position()[0]},{bullet.position()[1]};'
+
+    estado_guardado += f'\nscore:{state["score"]}'
+
+    with open(filename, "w") as f:
+        f.write(estado_guardado)
 
 def carregar_estado_txt(filename):
-    print("[carregar_estado_txt] por implementar")
-    
+    # ACABAR CARREGAR ESTADO
+    # ALTERADO
+    try:
+        estado_carregado = {
+                "player": [],
+                "enemies": [],
+                "enemy_moves": [],
+                "player_bullets": [],
+                "enemy_bullets": [],
+                "score": []
+                }
+
+        with open(filename, "r") as f:
+            linhas = f.readlines()
+
+            for l in range(len(linhas)):
+                linha = linhas[l].replace("\n", "")
+                chave = linha[:linha.index(":")]
+                valor = linha[linha.index(":")+1:].split(";")
+                
+                if valor[-1] == '':
+                    valor.pop()
+
+                estado_carregado[chave] = valor
+
+        return estado_carregado
+
+    except FileNotFoundError:
+        return None
 
 # =========================
 # Criação de entidades (jogador, inimigo e balas)
@@ -70,7 +162,7 @@ def criar_entidade(x,y, tipo="enemy"):
         t.shape("player.gif")
     else:
         t.shape("enemy.gif")
-    
+
     t.penup()
     t.goto(x, y)
     t.showturtle()
@@ -82,7 +174,7 @@ def criar_bala(x, y, tipo):
         t.fillcolor("YELLOW")
     else:
         t.fillcolor("RED")
-    
+
     t.penup()
     t.goto(x, y)
     t.begin_fill()
@@ -93,12 +185,21 @@ def criar_bala(x, y, tipo):
     return t
 
 def spawn_inimigos_em_grelha(state, posicoes_existentes, dirs_existentes=None):
-    for i in range(ENEMY_ROWS):
-        for j in range(ENEMY_COLS):
-            state["enemies"].append(criar_entidade(-275+j*ENEMY_SPACING_X, ENEMY_START_Y-ENEMY_SPACING_Y*i, "enemy"))
+    if posicoes_existentes == None:
+        for i in range(ENEMY_ROWS):
+            for j in range(ENEMY_COLS):
+                state["enemies"].append(criar_entidade(-275+j*ENEMY_SPACING_X, ENEMY_START_Y-ENEMY_SPACING_Y*i, "enemy"))
+    else:
+        for pos in posicoes_existentes:
+            ent = criar_entidade(float(pos.split(",")[0]), float(pos.split(",")[1]), "enemy")
+
+            state["enemies"].append(ent)
 
 def restaurar_balas(state, lista_pos, tipo):
-    print("[restaurar_balas] por implementar")
+    for p in lista_pos:
+        pos = p.split(",")
+
+        state[f"{tipo}_bullets"].append(criar_bala(float(pos[0]), float(pos[1]), tipo))
 
 # =========================
 # Handlers de tecla 
@@ -115,11 +216,11 @@ def disparar_handler():
     state["player_bullets"].append(criar_bala(state["player"].position()[0], state["player"].position()[1]+PLAYER_BULLET_SPEED, "player"))
 
 def gravar_handler():
-    print("[gravar_handler] por implementar")
+    guardar_estado_txt(state["files"]["save"], state)
 
 def terminar_handler():
     t = turtle.Turtle(visible=False)
-    
+
     t.penup()
     t.goto(0,0)
     t.color("WHITE")
@@ -137,6 +238,8 @@ def terminar_handler():
         t.color("RED")
         t.pendown()
         t.write("WASTED", align="center", font=("Arial", 15, "bold"))
+
+    atualizar_highscores(HIGHSCORES_FILE, state["score"])
 
     # REINICIAR JOGO
     recomecarInp = input("=================================\nRecomeçar jogo [S/N]: ")
@@ -165,9 +268,16 @@ def atualizar_balas_inimigos(state):
             state["enemy_bullets"].remove(bullet)
 
 def atualizar_inimigos(state):
-    direcao = -1
+    # direcao = -1
 
     for enemy in state["enemies"]:
+        i = state["enemies"].index(enemy)
+
+        if len(state["enemy_moves"]) < (i+1):
+            direcao = -1
+        else:
+            direcao = state["enemy_moves"][i]
+
         enemy.goto(enemy.position()[0], enemy.position()[1]-ENEMY_FALL_SPEED)
 
         drift_random = random.random()
@@ -182,8 +292,11 @@ def atualizar_inimigos(state):
                 direcao *= -1
             else:
                 enemy.goto(enemy.position()[0] + direcao*ENEMY_DRIFT_STEP, enemy.position()[1])
-        
-        state["enemy_moves"].append(direcao)
+
+        if len(state["enemy_moves"]) < (i+1):
+            state["enemy_moves"].append(direcao)
+        else:
+            state["enemy_moves"][i] = direcao
 
 def inimigos_disparam(state):
     for enemy in state["enemies"]:
@@ -202,6 +315,7 @@ def verificar_colisoes_player_bullets(state):
                 bullet.hideturtle()
                 state["player_bullets"].remove(bullet)
                 enemy.hideturtle()
+                state["enemy_moves"].remove(state["enemy_moves"][state["enemies"].index(enemy)]) #ALTERADO
                 state["enemies"].remove(enemy)
 
                 # AUMENTAR SCORE
@@ -278,13 +392,28 @@ if __name__ == "__main__":
                 }
 
         # Construção inicial
-        if loaded:
-            print("[loaded=True] por implementar")
+        if loaded == None and len(filename) != 0:
+            print("FileNotFoundError: ficheiro '" + filename + "' não encontrado.")
+            sys.exit(1)
+        elif loaded:
+            print("Loaded game!")
+            time.sleep(1)
+
+            player_pos = loaded["player"][0].split(",")
+            state["player"] = criar_entidade(int(player_pos[0]), int(player_pos[1]), "player")
+            spawn_inimigos_em_grelha(state, loaded["enemies"], None)
+            restaurar_balas(state, loaded["player_bullets"], "player")
+            restaurar_balas(state, loaded["enemy_bullets"], "enemy")
+            state["enemy_moves"] = [int(enemy_move) for enemy_move in loaded["enemy_moves"]]
+            state["score"] = int(loaded["score"][0])
+
+            score_t = turtle.Turtle(visible=False)
+            atualizar_score(0, 310, score_t, state["score"])
         else:
             print("New game!")
-            state["player"] = criar_entidade(0, -300,"player")
+            state["player"] = criar_entidade(0, -300, "player")
             spawn_inimigos_em_grelha(state, None, None)
-            
+
             score_t = turtle.Turtle(visible=False)
             atualizar_score(0, 310, score_t, 0)
 
