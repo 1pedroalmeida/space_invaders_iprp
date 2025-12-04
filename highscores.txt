@@ -1,3 +1,10 @@
 rui:6
 sergio:8
 pedro:30
+dani:26
+pedro:15
+x:0
+n:0
+nao:0
+rui:0
+ruiiii:0

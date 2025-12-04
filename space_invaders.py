@@ -45,23 +45,23 @@ def ler_highscores(filename):
         if ":" not in f.read():
             return []
 
+        nomes = [l[:l.index(":")] for l in linhas]
         scores = [l[l.index(":")+1:-1] for l in linhas]
         scores.sort(reverse=True)
 
-    return scores
+    return nomes, scores
 
 def atualizar_highscores(filename, score):
-    scores = ler_highscores(filename)
+    scores = ler_highscores(filename)[1]
 
     if len(scores) == 0:
         linhas = []
     else:
         with open(filename, "r") as f:
             linhas = f.readlines()
-            print(linhas)
 
     if len(scores) < TOP_N:
-        nome = input("Nome do utilizador: ")
+        nome = input("\nNovo highscore! Nome do utilizador: ")
         linhas.append(f"{nome}:{score}\n")
     elif score > int(scores[-1]):
         nome = input("Nome do utilizador: ")
@@ -97,7 +97,6 @@ def guardar_estado_txt(filename, state):
     # enemy_bullets:x,y;x,y;x,y;...
     # score:n
     estado_guardado = ""
-
 
     estado_guardado += f'player:{state["player"].position()[0]},{state["player"].position()[1]}'
 
@@ -240,6 +239,12 @@ def terminar_handler():
         t.write("WASTED", align="center", font=("Arial", 15, "bold"))
 
     atualizar_highscores(HIGHSCORES_FILE, state["score"])
+    highscores_nomes = ler_highscores(HIGHSCORES_FILE)[0]
+    highscores_scores = ler_highscores(HIGHSCORES_FILE)[1]
+
+    print("\n|| HIGHSCORES ||")
+    for i in range(len(highscores_scores)):
+        print("- " + highscores_nomes[i]+":"+highscores_scores[i])
 
     # REINICIAR JOGO
     recomecarInp = input("=================================\nRecomeçar jogo [S/N]: ")
@@ -348,7 +353,7 @@ def verificar_colisao_player_com_inimigos(state):
         distancia_player_inimigo_Y = enemy.position()[1] - state["player"].position()[1]
         distancia_player_inimigo_X = abs(state["player"].position()[0] - enemy.position()[0])
 
-        if (distancia_player_inimigo_Y <= (COLLISION_RADIUS + ENEMY_SIZE/2)) and (distancia_player_inimigo_X <= ENEMY_SIZE/2):
+        if (distancia_player_inimigo_Y <= (COLLISION_RADIUS)) and (distancia_player_inimigo_X <= ENEMY_SIZE/2):
             state["player"].hideturtle()
             enemy.hideturtle()
 
