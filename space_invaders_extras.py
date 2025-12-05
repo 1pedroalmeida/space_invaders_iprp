@@ -266,11 +266,33 @@ def gravar_handler():
 
     guardar_estado_txt(STATE["files"]["save"], STATE)
 
+# ADICIONADO: ECRÃ DE FIM DE JOGO; (funcionalidade) REINICIAR JOGO
 def terminar_handler():
     global STATE
+    global REINICIAR
 
     if STATE == None:
         return
+
+    t = turtle.Turtle(visible=False)
+
+    t.penup()
+    t.goto(0,0)
+    t.color("WHITE")
+    t.pendown()
+
+    t.write(f'SCORE: {STATE["score"]}', align="center", font=("Arial", 24, "bold"))
+    t.penup()
+    t.goto(0, -30)
+
+    if len(STATE["enemies"]) == 0:
+        t.color("YELLOW")
+        t.pendown()
+        t.write("VITÓRIA", align="center", font=("Arial", 15, "bold"))
+    else:
+        t.color("RED")
+        t.pendown()
+        t.write("DERROTA", align="center", font=("Arial", 15, "bold"))
 
     atualizar_highscores(HIGHSCORES_FILE, STATE["score"])
     nomes, scores = ler_highscores(HIGHSCORES_FILE)
@@ -280,8 +302,13 @@ def terminar_handler():
         print(f"{i}. {n}: {s}")
     print("================\n")
 
-    STATE["screen"].bye()
-    os._exit(0)
+    reiniciar_inp = input("Recomeçar jogo [S/N]: ")
+    if reiniciar_inp.lower() == "n":
+        STATE["screen"].bye()
+        os._exit(0)
+    
+    STATE["screen"].clear()
+    REINICIAR = True
 
 # =========================
 # Atualizações e colisões
@@ -394,102 +421,105 @@ def verificar_colisao_player_com_inimigos(state):
 # Execução principal
 # =========================
 if __name__ == "__main__":
-    # Pergunta inicial: carregar?
-    filename = input("Carregar jogo? Se sim, escreva nome do ficheiro, senão carregue Return: ").strip()
-    loaded = carregar_estado_txt(filename)
-
-    # Ecrã
-    screen = turtle.Screen()
-    screen.title("Space Invaders IPRP")
-    screen.bgcolor("black")
-    screen.setup(width=LARGURA, height=ALTURA)
-    screen.tracer(0)
-
-    # Imagens obrigatórias
-    for img in ["player.gif", "enemy.gif"]:
-        if not os.path.exists(img):
-            print("ERRO: imagem '" + img + "' não encontrada.")
-            sys.exit(1)
-        screen.addshape(img)
-
-    # Estado base
-    state = {
-            "screen": screen,
-            "player": None,
-            "enemies": [],
-            "enemy_moves": [],          
-            "player_bullets": [],
-            "enemy_bullets": [],
-            "score": 0,
-            "frame": 0,
-            "files": {"highscores": HIGHSCORES_FILE, "save": SAVE_FILE},
-            }
-
-    # Construção inicial
-    if loaded == None and len(filename) != 0:
-        print("FileNotFoundError: ficheiro '" + filename + "' não encontrado.")
-        sys.exit(1)
-    elif loaded:
-        print("Loaded game!")
-        time.sleep(2.5)
-
-        player_pos = loaded["player"][0].split(",")
-        state["player"] = criar_entidade(int(player_pos[0]), int(player_pos[1]), "player")
-        spawn_inimigos_em_grelha(state, loaded["enemies"], None)
-        restaurar_balas(state, loaded["player_bullets"], "player")
-        restaurar_balas(state, loaded["enemy_bullets"], "enemy")
-        state["enemy_moves"] = [int(enemy_move) for enemy_move in loaded["enemy_moves"]]
-        state["score"] = int(loaded["score"][0])
-
-        score_t = turtle.Turtle(visible=False)
-        atualizar_score(0, 310, score_t, state["score"])
-    else:
-        print("New game!")
-        state["player"] = criar_entidade(0, -300, "player")
-        spawn_inimigos_em_grelha(state, None, None)
-
-        score_t = turtle.Turtle(visible=False)
-        atualizar_score(0, 310, score_t, 0)
-
-    # Variavel global para os keyboard key handlers
-    STATE = state
-
-    # Teclas
-    screen.listen()
-    screen.onkeypress(mover_esquerda_handler, "Left")
-    screen.onkeypress(mover_direita_handler, "Right")
-    screen.onkeypress(disparar_handler, "space")
-    screen.onkeypress(gravar_handler, "g")
-    screen.onkeypress(terminar_handler, "Escape")
-
-    # Loop principal
     while True:
-        atualizar_balas_player(STATE)
-        atualizar_inimigos(STATE)
-        inimigos_disparam(STATE)
-        atualizar_balas_inimigos(STATE)
-        verificar_colisoes_player_bullets(STATE)
+        REINICIAR = False
 
-        if verificar_colisao_player_com_inimigos(STATE):
-            print("Colisão direta com inimigo! Game Over")
-            terminar_handler()
-            break
+        # Pergunta inicial: carregar?
+        filename = input("Carregar jogo? Se sim, escreva nome do ficheiro, senão carregue Return: ").strip()
+        loaded = carregar_estado_txt(filename)
 
-        if verificar_colisoes_enemy_bullets(STATE):
-            print("Atingido por inimigo! Game Over")
-            terminar_handler()
-            break
+        # Ecrã
+        screen = turtle.Screen()
+        screen.title("Space Invaders IPRP")
+        screen.bgcolor("black")
+        screen.setup(width=LARGURA, height=ALTURA)
+        screen.tracer(0)
 
-        if inimigo_chegou_ao_fundo(STATE):
-            print("Um inimigo chegou ao fundo! Game Over")
-            terminar_handler()
-            break
+        # Imagens obrigatórias
+        for img in ["player.gif", "enemy.gif"]:
+            if not os.path.exists(img):
+                print("ERRO: imagem '" + img + "' não encontrada.")
+                sys.exit(1)
+            screen.addshape(img)
 
-        if len(STATE["enemies"]) == 0:
-            print("Vitória! Todos os inimigos foram destruídos.")
-            terminar_handler()
-            break
+        # Estado base
+        state = {
+                "screen": screen,
+                "player": None,
+                "enemies": [],
+                "enemy_moves": [],          
+                "player_bullets": [],
+                "enemy_bullets": [],
+                "score": 0,
+                "frame": 0,
+                "files": {"highscores": HIGHSCORES_FILE, "save": SAVE_FILE},
+                }
 
-        STATE["frame"] += 1
-        screen.update()
-        time.sleep(0.016)
+        # Construção inicial
+        if loaded == None and len(filename) != 0:
+            print("FileNotFoundError: ficheiro '" + filename + "' não encontrado.")
+            sys.exit(1)
+        elif loaded:
+            print("Loaded game!")
+            time.sleep(2.5)
+
+            player_pos = loaded["player"][0].split(",")
+            state["player"] = criar_entidade(int(player_pos[0]), int(player_pos[1]), "player")
+            spawn_inimigos_em_grelha(state, loaded["enemies"], None)
+            restaurar_balas(state, loaded["player_bullets"], "player")
+            restaurar_balas(state, loaded["enemy_bullets"], "enemy")
+            state["enemy_moves"] = [int(enemy_move) for enemy_move in loaded["enemy_moves"]]
+            state["score"] = int(loaded["score"][0])
+
+            score_t = turtle.Turtle(visible=False)
+            atualizar_score(0, 310, score_t, state["score"])
+        else:
+            print("New game!")
+            state["player"] = criar_entidade(0, -300, "player")
+            spawn_inimigos_em_grelha(state, None, None)
+
+            score_t = turtle.Turtle(visible=False)
+            atualizar_score(0, 310, score_t, 0)
+
+        # Variavel global para os keyboard key handlers
+        STATE = state
+
+        # Teclas
+        screen.listen()
+        screen.onkeypress(mover_esquerda_handler, "Left")
+        screen.onkeypress(mover_direita_handler, "Right")
+        screen.onkeypress(disparar_handler, "space")
+        screen.onkeypress(gravar_handler, "g")
+        screen.onkeypress(terminar_handler, "Escape")
+
+        # Loop principal
+        while not REINICIAR:
+            atualizar_balas_player(STATE)
+            atualizar_inimigos(STATE)
+            inimigos_disparam(STATE)
+            atualizar_balas_inimigos(STATE)
+            verificar_colisoes_player_bullets(STATE)
+
+            if verificar_colisao_player_com_inimigos(STATE):
+                print("Colisão direta com inimigo! Game Over")
+                terminar_handler()
+                break
+
+            if verificar_colisoes_enemy_bullets(STATE):
+                print("Atingido por inimigo! Game Over")
+                terminar_handler()
+                break
+
+            if inimigo_chegou_ao_fundo(STATE):
+                print("Um inimigo chegou ao fundo! Game Over")
+                terminar_handler()
+                break
+
+            if len(STATE["enemies"]) == 0:
+                print("Vitória! Todos os inimigos foram destruídos.")
+                terminar_handler()
+                break
+
+            STATE["frame"] += 1
+            screen.update()
+            time.sleep(0.016)
