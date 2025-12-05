@@ -216,7 +216,7 @@ def spawn_inimigos_em_grelha(state, posicoes_existentes, dirs_existentes=None):
     if posicoes_existentes == None:
         for i in range(ENEMY_ROWS):
             for j in range(ENEMY_COLS):
-                state["enemies"].append(criar_entidade(-275+j*ENEMY_SPACING_X, ENEMY_START_Y-ENEMY_SPACING_Y*i, "enemy"))
+                state["enemies"].append(criar_entidade(-BORDA_X+j*ENEMY_SPACING_X, ENEMY_START_Y-ENEMY_SPACING_Y*i, "enemy"))
     else:
         for pos in posicoes_existentes:
             ent = criar_entidade(float(pos.split(",")[0]), float(pos.split(",")[1]), "enemy")
